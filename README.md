@@ -1,5 +1,21 @@
 # Bare naked code - binary, at last
 
+minim00.c
+```c
+void main() {}
+```
+
+```bash
+> gdb -batch -ex 'file minim00' -ex 'disassemble main'
+Dump of assembler code for function main:
+   0x00000000000005fa <+0>:	push   %rbp
+   0x00000000000005fb <+1>:	mov    %rsp,%rbp
+   0x00000000000005fe <+4>:	nop
+   0x00000000000005ff <+5>:	pop    %rbp
+   0x0000000000000600 <+6>:	retq   
+End of assembler dump.
+```
+
 minim0.c
 ```c
 int main() {}
