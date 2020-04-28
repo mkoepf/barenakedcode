@@ -275,3 +275,105 @@ yielding, after disassembly,
 ```
 
 That's better! 
+
+Now let's see how more than one local variable is stored.
+
+minim6.c
+```c
+int main() {
+	int a = 42;
+	int b = 13;
+	return a + b;
+}
+```
+
+yields
+
+```bash
+0x00000000000005fa <+0>:	push   %rbp
+0x00000000000005fb <+1>:	mov    %rsp,%rbp
+0x00000000000005fe <+4>:	movl   $0x2a,-0x8(%rbp)
+0x0000000000000605 <+11>:	movl   $0xd,-0x4(%rbp)
+0x000000000000060c <+18>:	mov    -0x8(%rbp),%edx
+0x000000000000060f <+21>:	mov    -0x4(%rbp),%eax
+0x0000000000000612 <+24>:	add    %edx,%eax
+0x0000000000000614 <+26>:	pop    %rbp
+0x0000000000000615 <+27>:	retq 
+```
+
+The two integers are stacked on top of each other into 4 byte (Long) "compartments". Note, that the variable b which is
+initialized second comes first on the stack. 
+Their addition is done by first loading them into registers edx, eax and finally adding them in a way that the result
+is already in eax, as the return value.
+
+Of course, this is again suboptimal. In fact, everything about minim6 is already known at compile time, because only
+constants are added. The compiler should understand that, as well. And indeed, when we compile with 
+optimization using
+
+```bash
+gcc -O1 minim6.c -o minim6opt
+```
+
+disassembly yields
+
+```bash
+0x00000000000005fa <+0>:	mov    $0x37,%eax
+0x00000000000005ff <+5>:	retq   
+gcc 
+```
+
+i.e. the compiler simply computes the result 42+13=55(=0x37) at compile time. At runtime, the result is simply placed 
+into the proper register and that's it.
+
+## Data types
+
+float.c
+```c
+void main() {
+	float a = 3.14;
+	return;
+}
+```
+
+```bash
+0x00000000000005fa <+0>:	push   %rbp
+0x00000000000005fb <+1>:	mov    %rsp,%rbp
+0x00000000000005fe <+4>:	movss  0x8e(%rip),%xmm0        # 0x694
+0x0000000000000606 <+12>:	movss  %xmm0,-0x4(%rbp)
+0x000000000000060b <+17>:	nop
+0x000000000000060c <+18>:	pop    %rbp
+0x000000000000060d <+19>:	retq   
+```
+
+Compiled with -O1 this becomes a one-liner:
+
+```bash
+0x00000000000005fa <+0>:	repz retq 
+```
+
+intarray.c
+```c
+void main() {
+    int ia[3] = {1, 2, 3};
+    return;
+}
+```
+
+```bash
+0x000000000000066a <+0>:	push   %rbp
+0x000000000000066b <+1>:	mov    %rsp,%rbp
+0x000000000000066e <+4>:	sub    $0x20,%rsp
+0x0000000000000672 <+8>:	mov    %fs:0x28,%rax
+0x000000000000067b <+17>:	mov    %rax,-0x8(%rbp)
+0x000000000000067f <+21>:	xor    %eax,%eax
+0x0000000000000681 <+23>:	movl   $0x1,-0x14(%rbp)
+0x0000000000000688 <+30>:	movl   $0x2,-0x10(%rbp)
+0x000000000000068f <+37>:	movl   $0x3,-0xc(%rbp)
+0x0000000000000696 <+44>:	nop
+0x0000000000000697 <+45>:	mov    -0x8(%rbp),%rax
+0x000000000000069b <+49>:	xor    %fs:0x28,%rax
+0x00000000000006a4 <+58>:	je     0x6ab <main+65>
+0x00000000000006a6 <+60>:	callq  0x540 <__stack_chk_fail@plt>
+0x00000000000006ab <+65>:	leaveq 
+0x00000000000006ac <+66>:	retq   
+```
